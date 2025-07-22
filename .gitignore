@@ -1,0 +1,15 @@
+__pycache__/
+.DS_Store
+
+
+data/
+export/
+results/
+
+export_dep/
+
+.venv/
+
+test.ipynb
+test.txt
+
