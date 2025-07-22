@@ -214,14 +214,7 @@ def detect_hands_with_enhancement(holistic, image: np.ndarray, cam_idx: int, con
         enhancement_attempts += 1
         gamma_corrected = apply_gamma_correction(image.copy(), gamma)
         gamma_rgb = cv2.cvtColor(gamma_corrected, cv2.COLOR_BGR2RGB)
-        
-        # Apply histogram equalization for cameras 1-4 (not camera05/camera06)
-        if cam_idx < 5:
-            # img_yuv = cv2.cvtColor(gamma_rgb, cv2.COLOR_RGB2YUV)
-            # img_yuv[:, :, 0] = cv2.equalizeHist(img_yuv[:, :, 0])
-            # gamma_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2RGB)
-            gamma_rgb = enhance_with_clahe(gamma_rgb)
-        
+        gamma_rgb = enhance_with_clahe(gamma_rgb)
         gamma_results = holistic.process(gamma_rgb)
         
         # Count hands detected with gamma correction
@@ -247,14 +240,7 @@ def detect_hands_with_enhancement(holistic, image: np.ndarray, cam_idx: int, con
             enhancement_attempts += 1
             enhanced = np.clip(image.copy().astype(np.float32) * alpha + beta, 0, 255).astype(np.uint8)
             enhanced_rgb = cv2.cvtColor(enhanced, cv2.COLOR_BGR2RGB)
-            
-            # Apply histogram equalization for cameras 1-4 (not camera05/camera06)
-            if cam_idx < 5:
-                # img_yuv = cv2.cvtColor(enhanced_rgb, cv2.COLOR_RGB2YUV)
-                # img_yuv[:, :, 0] = cv2.equalizeHist(img_yuv[:, :, 0])
-                # enhanced_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2RGB)
-                enhanced_rgb = enhance_with_clahe(enhanced_rgb)
-            
+            enhanced_rgb = enhance_with_clahe(enhanced_rgb)
             enhanced_results = holistic.process(enhanced_rgb)
             
             # Count hands detected in enhanced image
