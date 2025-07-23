@@ -91,7 +91,7 @@ if __name__ == "__main__":
         camera_errors = 0
         
         for category in args.categories:
-            category_path = os.path.join(base_path, camera_name, "keypoints", category)
+            category_path = os.path.join(base_path, camera_name, "keypoint_slow", category)
             
             if not os.path.exists(category_path):
                 print(f"  Warning: {category_path} does not exist, skipping...")

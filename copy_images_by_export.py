@@ -134,19 +134,26 @@ def main():
                        help="Output directory for copied images (default: ./images)")
     parser.add_argument("--dataset", default="20250519_Testing", 
                        help="Dataset name (default: 20250519_Testing)")
-    parser.add_argument("--cam", 
+    parser.add_argument("--cam", required=True,
                        help="Specific camera to process (e.g., camera01)")
     parser.add_argument("--side", choices=['left', 'right'], 
                        help="Specific side to process (left or right)")
     
     args = parser.parse_args()
     
+    # Format camera name properly
+    if args.cam.startswith('camera'):
+        camera_name = args.cam
+    else:
+        # Assume it's just a number and format it as camera## (zero-padded)
+        camera_name = f"camera{int(args.cam):02d}"
+    
     copy_images_by_export(
         export_base_dir=args.export_dir,
         input_base_dir=args.input_dir,
         output_dir=args.output_dir,
         dataset_name=args.dataset,
-        camera=f"camera0{args.cam}",
+        camera=camera_name,
         side=args.side
     )
 

@@ -18,10 +18,10 @@ DEFAULT_CONF = 0.35
 # Enhancement configuration
 class EnhancementConfig:
     def __init__(self):
-        self.max_alpha = 1.8
+        self.max_alpha = 2.0
         self.alpha_step = 0.3
-        self.min_beta = -25
-        self.max_beta = 26
+        self.min_beta = -75
+        self.max_beta = 76
         self.beta_step = 25
         # Gamma correction parameters
         self.gamma_values = [0.5, 0.7, 0.8, 1.2, 1.5, 2.0]  # Range of gamma values to try
@@ -279,7 +279,7 @@ def main():
     cam_idx = args.cam_idx
     save = bool(args.save_images)
     ORBBEC = True if cam_idx < 5 else False
-    dataset = "20250206_Testing"
+    dataset = "20250519_Testing"
     input_base_path = f"./data/input/{dataset}/camera0{cam_idx}/"
     output_base_path = input_base_path.replace('input', 'output').replace('tony', 'tony/mediapipe_pose').replace(f'camera0{cam_idx}/', f'{conf:2f}/camera0{cam_idx}/images')
     keypoints_base_path = output_base_path.replace('images', f'keypoint_{"fast" if args.fast else "slow"}')
