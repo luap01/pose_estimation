@@ -281,7 +281,7 @@ def main():
     ORBBEC = True if cam_idx < 5 else False
     dataset = "20250519_Testing"
     input_base_path = f"./data/input/{dataset}/camera0{cam_idx}/"
-    output_base_path = input_base_path.replace('input', 'output').replace('tony', 'tony/mediapipe_pose').replace(f'camera0{cam_idx}/', f'{conf:2f}/camera0{cam_idx}/images')
+    output_base_path = input_base_path.replace('input', 'output_test').replace('tony', 'tony/mediapipe_pose').replace(f'camera0{cam_idx}/', f'{conf:2f}/camera0{cam_idx}/images')
     keypoints_base_path = output_base_path.replace('images', f'keypoint_{"fast" if args.fast else "slow"}')
 
     # Create output directories
@@ -304,7 +304,7 @@ def main():
         smooth_segmentation=False,
         refine_face_landmarks=False,
         min_detection_confidence=conf,
-        min_tracking_confidence=0.5
+        min_tracking_confidence=0.75
     )
 
     # Initialize enhancement configuration
@@ -329,6 +329,8 @@ def main():
     }
     
     for idx, file in enumerate(files):
+        if int(file.split(".")[0]) < 2220:
+            continue
         if idx % 500 == 0:
             logger.info(f"Processed {idx}/{len(files)}...")
         image_path = os.path.join(input_base_path, file)
@@ -339,12 +341,13 @@ def main():
 
         if ORBBEC:
             image = undistort_image(image, cam_params, "color")
-        else:
-            image = cv2.undistort(
-                image, 
-                cam_params['intrinsics'], 
-                np.array([cam_params['radial_params'][0]] + [cam_params['radial_params'][1]] + list(cam_params['tangential_params'][:2]) + [cam_params['radial_params'][2]] + [0, 0, 0])
-            )
+        # else:
+            # image = cv2.undistort(
+            #     image, 
+            #     cam_params['intrinsics'], 
+            #     np.array([cam_params['radial_params'][0]] + [cam_params['radial_params'][1]] + list(cam_params['tangential_params'][:2]) + [cam_params['radial_params'][2]] + [0, 0, 0])
+            # )
+
 
         if not args.fast:
             # Use enhanced detection with retry logic

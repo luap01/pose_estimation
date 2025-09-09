@@ -13,7 +13,7 @@ def save_file(data, path):
     with open(path, "w") as json_file:
         json.dump(data, json_file, indent=4)
 
-def build_arr(data, hand_side):
+def build_arr(data, hand_side, cam=None):
     kps = data[f"hand_{hand_side}_keypoints_2d"]
     conf = data[f"hand_{hand_side}_conf"]
     coords = []
@@ -39,7 +39,75 @@ def build_arr(data, hand_side):
     for idx in range(0, len(kps), 3):
         coords.append(kps[idx])
         coords.append(kps[idx+1])
+
+    if cam == "camera03":
+        confs = [0] * 21
     return [coords, confs]
+
+
+def extract_hand_pose_coords(pose_keypoints_2d, hand_side: str):
+    """
+    Build a coords list from pose_keypoints_2d for a given hand.
+
+    We use the 4 hand-related pose landmarks per hand (wrist, pinky, index, thumb):
+    - Left: 15 (wrist), 17 (pinky), 19 (index), 21 (thumb)
+    - Right: 16 (wrist), 18 (pinky), 20 (index), 22 (thumb)
+
+    Input pose_keypoints_2d is expected to be a flat list of length 33*3:
+    [x0, y0, c0, x1, y1, c1, ..., x32, y32, c32].
+
+    Returns a flat [x, y, ...] list for 21 hand keypoints (42 numbers total).
+    Only these slots are filled from pose, remaining are zeros:
+      - 0: wrist
+      - 4: thumb tip
+      - 8: index tip
+      - 20: pinky tip
+    """
+    # Initialize 21 keypoints (x,y) with zeros
+    coords = [0.0] * (21 * 2)
+
+    if not pose_keypoints_2d or len(pose_keypoints_2d) < 33 * 3:
+        return [coords, [0.0] * (len(coords) // 2)]
+
+    if hand_side == "left":
+        wrist_idx, pinky_idx, index_idx, thumb_idx = 15, 17, 19, 21
+    else:
+        wrist_idx, pinky_idx, index_idx, thumb_idx = 16, 18, 20, 22
+
+    wrist_x, wrist_y = pose_keypoints_2d[3*wrist_idx], pose_keypoints_2d[3*wrist_idx+1]
+    pinky_x, pinky_y = pose_keypoints_2d[3*pinky_idx], pose_keypoints_2d[3*pinky_idx+1]
+    index_x, index_y = pose_keypoints_2d[3*index_idx], pose_keypoints_2d[3*index_idx+1]
+    thumb_x, thumb_y = pose_keypoints_2d[3*thumb_idx], pose_keypoints_2d[3*thumb_idx+1] 
+
+    x_max = max(max(max(wrist_x, pinky_x), index_x), thumb_x)
+    x_min = min(min(min(wrist_x, pinky_x), index_x), thumb_x)
+    y_max = max(max(max(wrist_y, pinky_y), index_y), thumb_y)
+    y_min = min(min(min(wrist_y, pinky_y), index_y), thumb_y)
+
+    threshold_val = 120
+    if x_max - x_min < threshold_val:
+        diff = threshold_val - (x_max - x_min)
+        x_max += (diff * 0.5)
+        x_min -= (diff * 0.5)
+    if y_max - y_min < threshold_val:
+        diff = threshold_val - (y_max - y_min)
+        y_max += (diff * 0.5)
+        y_min -= (diff * 0.5)
+
+    # x_max += 50
+    # x_min += 50
+
+    # Keep legacy return structure (unused downstream)
+    kps = [0.0] * 42
+    for idx in range(0, 42, 2):
+        kps[idx] = float(x_max)
+        kps[idx + 1] = float(y_max)
+    kps[2] = float(x_min)
+    kps[3] = float(y_min)
+
+    coords = kps
+
+    return [coords, [0.0] * (len(coords) // 2)]
 
 def has_valid_hand_keypoints(data, hand_side):
     """Check if hand has valid keypoints (not empty/zero)"""
@@ -98,6 +166,7 @@ if __name__ == "__main__":
                 continue
             
             files = os.listdir(category_path)
+            files = [f for f in files if f.endswith(".json")]
             print(f"  Processing {len(files)} files from {category} category...")
             
             for idx, file in enumerate(files):
@@ -112,48 +181,44 @@ if __name__ == "__main__":
                         has_left = has_valid_hand_keypoints(person_data, "left")
                         has_right = has_valid_hand_keypoints(person_data, "right")
                         
-                        if category == "success":
+                        if category == "partial":
                             # For success, save both hands (even if one might be empty)
-                            res_left = build_arr(person_data, "left")
-                            res_right = build_arr(person_data, "right")
+                            
+                            res_left = build_arr(person_data, "left") if has_left else extract_hand_pose_coords(person_data['pose_keypoints_2d'], "left")
+                            res_right = build_arr(person_data, "right") if has_right else extract_hand_pose_coords(person_data['pose_keypoints_2d'], "right")
+
+                            if camera_name == "camera06":
+                                tmp = res_left
+                                res_left = res_right
+                                res_right = tmp
+                            
+                        # elif category == "partial":
+                        #     # For partial, only save detected hands
+                        #     if has_left:
+                        #         res_left = build_arr(person_data, "left")
+                        #         res_right = extract_hand_pose_coords(person_data['pose_keypoints_2d'], "right")
+                                
+                        #     if has_right:
+                        #         res_right = build_arr(person_data, "right")
+                        #         res_left = extract_hand_pose_coords(person_data['pose_keypoints_2d'], "left")
+                            
+                        # elif category == "failure":
+                        #     res_right = extract_hand_pose_coords(person_data['pose_keypoints_2d'], "right")
+                        #     res_left = extract_hand_pose_coords(person_data['pose_keypoints_2d'], "left")
+
                             
                             tar_pth_left = os.path.join(tar_base_path, category, "left", camera_name, file)
                             tar_pth_right = os.path.join(tar_base_path, category, "right", camera_name, file)
-                            
+
                             os.makedirs(os.path.dirname(tar_pth_left), exist_ok=True)
                             os.makedirs(os.path.dirname(tar_pth_right), exist_ok=True)
                             
-                            save_file(res_left, tar_pth_left)
-                            save_file(res_right, tar_pth_right)
-                            files_saved = 2
-                            
-                        elif category == "partial":
-                            # For partial, only save detected hands
-                            detected_hands = []
-                            if has_left:
-                                res_left = build_arr(person_data, "left")
-                                tar_pth_left = os.path.join(tar_base_path, category, "left", camera_name, file)
-                                os.makedirs(os.path.dirname(tar_pth_left), exist_ok=True)
-                                save_file(res_left, tar_pth_left)
-                                files_saved += 1
-                                detected_hands.append("left")
-                                
-                            if has_right:
-                                res_right = build_arr(person_data, "right")
-                                tar_pth_right = os.path.join(tar_base_path, category, "right", camera_name, file)
-                                os.makedirs(os.path.dirname(tar_pth_right), exist_ok=True)
+                            if res_right:
                                 save_file(res_right, tar_pth_right)
                                 files_saved += 1
-                                detected_hands.append("right")
-                            
-                            # Debug output for partial files
-                            if idx < 5:  # Only show first few files to avoid spam
-                                hands_str = ", ".join(detected_hands) if detected_hands else "none"
-                                print(f"    {file}: detected hands - {hands_str}")
-                                
-                        elif category == "failure":
-                            # For failure, create empty files only if explicitly needed
-                           pass
+                            if res_left:
+                                save_file(res_left, tar_pth_left)
+                                files_saved += 1
                             
                     else:
                         pass
